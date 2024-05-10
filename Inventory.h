@@ -2,8 +2,11 @@
 #include <string>
 #include <unordered_map>
 
+using namespace std;
+
 class Inventory {
-    std::unordered_map<unsigned long, int> inventory;
+private:
+    unordered_map<unsigned long, int> inventory;
     int date[3];
     // quantity par 
 
