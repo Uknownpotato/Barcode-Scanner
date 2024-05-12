@@ -43,7 +43,7 @@ int main() {
 
 	// Database code
 	try {
-		pqxx::connection conn("dbname=testone user=milo password=1Plommon \ hostaddr=127.0.0.1 port=5432");
+		pqxx::connection conn("dbname=db user=user password=password \ hostaddr=127.0.0.1 port=5432");
 	
 		if (conn.is_open()) {
 			std::cout << "Connected to PostgreSQL successfully\n";
