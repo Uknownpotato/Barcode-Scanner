@@ -13,13 +13,15 @@ size_t WriteCallback(void* contents, size_t size, size_t nmemb, std::string* buf
 
 int main() {
 	// API code
-	/*curl_global_init(CURL_GLOBAL_ALL);
+	curl_global_init(CURL_GLOBAL_ALL);
 	CURL* curl = curl_easy_init();
 	CURLcode res;
 	std::string responseBuffer;
 
 	if (curl) {
-		curl_easy_setopt(curl, CURLOPT_URL, "https://skatteverket.entryscape.net/rowstore/dataset/70ccea31-b64c-4bf5-84c7-673f04f32505");
+		// ean is to be replaced with the corresponding variable to the scanned ean
+		string ean;
+		curl_easy_setopt(curl, CURLOPT_URL, "https://productsearch.gs1.se/?query=" + ean + "&sortby=0&sortDirection=1");
 
 		curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WriteCallback);
 		curl_easy_setopt(curl, CURLOPT_WRITEDATA, &responseBuffer);
@@ -39,7 +41,7 @@ int main() {
 		std::cerr << "Failed to initialize cURL" << std::endl;
 	}
 	
-	curl_global_cleanup();*/
+	curl_global_cleanup();
 
 	// Database code
 	try {
