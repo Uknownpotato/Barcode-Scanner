@@ -1,48 +1,80 @@
 #include <avr/sleep.h>
 #include <avr/interrupt.h>
+
+#define LED_PIN 8 
+#define BUTTON_PIN 7
+
 const int buttonPin = 2;
 const byte interruptPin = 2;
-volatile byte state = LOW;
 
 void setup() {
+  Serial.begin(9600);
+  pinMode(buttonPin, INPUT);
+  pinMode(LED_PIN, OUTPUT);
 
-Serial.begin(9600);     //initializes serial data communication
-pinMode(buttonPin, INPUT_PULLUP);
-attachInterrupt(digitalPinToInterrupt(interruptPin), enterSleepMode, RISING);
-
+  attachInterrupt(digitalPinToInterrupt(interruptPin), wakeUp, FALLING); 
+  set_sleep_mode(SLEEP_MODE_PWR_DOWN);
 }
 
 void loop() {
 
-timeInactive();       // calls the function to start counting after an action
+ if (digitalRead(BUTTON_PIN) == HIGH) {
+   digitalWrite(LED_PIN, HIGH);
+  } else {
+    digitalWrite(LED_PIN, LOW);
+  }
+}
+sessionTimeOut();
 
 }
 
-void timeInactive() {
+void sessionTimeOut() {
+  unsigned long startTime = millis();
+  unsigned long currentTime = millis();
 
-unsigned long startTime = millis();   // starts counting since function called
-int buttonState;
+  while (true) {
+    currentTime = millis();
 
-  while (startTime < 120000) { 
-    buttonState = digitalRead(2);
-    if (buttonState == HIGH || Serial.available() > 0) {    //breaks loop if new input is found
-      // add that the new scan or mode change also registers in loop !
-      // addObj(++)
-      break;
-   
+    if (digitalRead(BUTTON_PIN) == HIGH) {    // add on || Serial.available() > 0
+      // Add/remove new object or register mode change
+      // Exit loop if new input is found
+    return;
     }
+    if (currentTime - startTime >= 5000 || digitalRead(buttonPin) == HIGH) {
+      enterSleepMode();
+      return;
+    }
+  }
+ }
+
+void controlLED() {
+  
+if (digitalRead(buttonPin) == HIGH) {
+     digitalWrite(LED_PIN, HIGH);
+  } else {
+    digitalWrite(LED_PIN, LOW);
+  }
 }
-      if (startTime >= 120000) {
-        enterSleepMode();       //when inactive for 120 seconds, enters sleepmode
-  }
-  }
 
 void enterSleepMode() {
-set_sleep_mode(SLEEP_MODE_PWR_DOWN);
-sleep_enable();
-sleep_mode();
+  digitalWrite(LED_PIN, HIGH);
+  delay(500);
+  Serial.println("Entering sleep mode...");
+  sleep_enable();
+  sleep_mode(); // Enter sleep mode
+  // The program will continue from here after waking up
+
+  // Disable sleep mode
+  sleep_disable(); 
+  digitalWrite(LED_PIN, HIGH);
+  delay(2000);
+
+  // Reattach interrupt for next sleep cycle
+  attachInterrupt(digitalPinToInterrupt(interruptPin), wakeUp, FALLING); 
 }
 
 void wakeUp() {
-detachInterrupt(digitalPinToInterrupt(interruptPin));
+  Serial.println("Waking up...");
+  return;
 }
+
