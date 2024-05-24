@@ -1,0 +1,64 @@
+// melody when you add a product
+int melody[] = {
+  400, 600,
+};
+int noteDurations[] = {
+  8, 8, 
+};
+// The (int pauseBetweenNotesint) should be *2, to get the expected sound
+
+
+
+
+
+
+
+//melody when you remove a product
+int melody[] = {
+  600,300,
+};
+int noteDurations[] = {
+  8, 8, 
+};
+// The (int pauseBetweenNotesint) should be *2, to get the expected sound
+
+
+
+
+
+// The green LED light turns on when the red one is of and vice versa. The green should be used to blink whenever a new item is added and the red one when a item is removed.
+ digitalWrite(Green, HIGH);
+  digitalWrite(Red, LOW);
+  delay(1000); 
+
+// the delay variable is optional
+
+digitalWrite(Red, LOW);
+  digitalWrite(Green, HIGH);
+  delay(1000); 
+
+
+
+
+
+
+// vet inte om jag har gjort rätt hära då jag inte har en display att testa koden på
+
+// use the file LiquidCrystal.h in the code.
+if (productAdded) {
+      lcd.clear();
+      lcd.setCursor(0, 0);
+      lcd.print("product added");
+      productAdded = true;
+    } else {
+      lcd.clear();
+      lcd.setCursor(0, 0);
+      lcd.print("product not added");
+      productAdded = false;
+
+
+
+
+
+
+
