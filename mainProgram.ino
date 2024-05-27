@@ -59,7 +59,10 @@ bool stopScan(){
 void saveProductsToFile(Inventory scanObj, String name){
   savedObjects = SD.open(name, FILE_WRITE);
   if(savedObjects){
-    for (auto i = )
+    for (auto i = ){
+      savedObjects.println(...);
+    }
+    savedObjects.close();
   }
 }
 
