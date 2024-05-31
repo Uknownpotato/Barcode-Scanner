@@ -7,11 +7,18 @@
 //#include <iostream.h>
 using namespace std;
 const int buttonPin = 2;
-const int lightPin = 8;
-const int soundPin = 9;
+const int rRGB = A0;
+const int gRGB = A1;
+const int bRGB = A2;
+const int soundPin = 8;
 const byte interruptPin = 2;
 int debounceTime = 20;
 volatile byte state = LOW;
+const byte RED[3] = {255, 0, 0};
+const byte GREEN[3] = {0, 255, 0};
+const byte BLUE[3] = {0, 0, 255};
+const byte ORANGE[3] = {255, 128, 0};
+const byte OFF[3] = {0, 0, 0};
 const int c = 262;
 const int db = 277;
 const int d = 294;
@@ -30,51 +37,90 @@ int successMel1[] = {c, g};
 int successMel2[] = {200, 400};
 int failureMel1[] = {c, a/2};
 int failureMel2[] = {200, 400};
+int sleepMel1[] = {e, 0, e, g};
+int sleepMel2[] = {80, 20, 200, 800};
+
+String scannedObjects[5] = {"", "", "", "", ""};
 
 File savedObjects;
 
 void setup() {
   Serial.begin(9600);
   pinMode(buttonPin, INPUT_PULLUP);
-  pinMode(lightPin, OUTPUT);
+  pinMode(rRGB, OUTPUT);
+  pinMode(gRGB, OUTPUT);
+  pinMode(bRGB, OUTPUT);
+  pinMode(soundPin, OUTPUT);
   attachInterrupt(digitalPinToInterrupt(interruptPin), lightBlink, RISING);
 }
 
 bool scanning = false;
 
-bool buttonPressAdd(){
-}
-
-bool buttonPressRemove(){
+bool buttonPress(){
+  int buttonState;
+  buttonState = digitalRead(buttonPin);
+    if (buttonState == HIGH) {
+      delay(debounceTime);
+      buttonState = digitalRead(buttonPin);
+      if (buttonState == HIGH) {
+        return true;
+      } 
+    } 
+      return false;
 }
 
 String scanEAN(){
-  while (Serial.available() == 0);
+  while (Serial.available() == 0){};
   return Serial.readString();
 }
 
 bool stopScan(){
 }
 
-void saveProductsToFile(Inventory scanObj, String name){
+void saveProductsToFile(String scanObj[], String name){
+  int numObj = 5;
   savedObjects = SD.open(name, FILE_WRITE);
-  if(savedObjects){
-    for (auto i = ){
-      savedObjects.println(...);
-    }
-    savedObjects.close();
+  for (int i = 0; i < numObj; i++){
+    savedObjects.println(scanObj[i]);
+    Serial.println(scanObj[i]);
   }
+    savedObjects.close();
+}
+
+void readProductsFromFile(String name){
+  savedObjects = SD.open(name);
+  while (savedObjects.available()) {
+      Serial.println(savedObjects.read());
+    }
+    // close the file:
+    savedObjects.close();
+  
+}
+
+void setColor(const byte color[3]) {
+  analogWrite(rRGB, color[0]);
+  analogWrite(gRGB, color[1]);
+  analogWrite(bRGB, color[2]);
 }
 
 void lightBlink(){
-  digitalWrite(lightPin,HIGH);
-  delay(1000);
-  digitalWrite(lightPin, LOW);
+  setColor(RED);
+  delay(500);
+  setColor(GREEN);
+  delay(500);
+  setColor(BLUE);
+  delay(500);
+  setColor(ORANGE);
+  delay(500);
+  setColor(OFF);
+  delay(500);
+}
+
+void wakeUp(){
+
 }
 
 void loop() {
-  //startSound();
-  //Serial.print(sizeof(startMelody1)/sizeof(startMelody1[0]));
   playMelody(startMelody1, startMelody2, sizeof(startMelody1)/sizeof(startMelody1[0]));
   delay(1000);
   playMelody(successMel1, successMel2, sizeof(successMel1)/sizeof(successMel1[0]));
@@ -83,8 +129,6 @@ void loop() {
 
   lightBlink();
   timeInactive();
-  digitalWrite(lightPin, HIGH);
-  delay(2000);
   /*if(buttonPressAdd()){
     Inventory scannedObjects(day(), month(), year());
     scanning = true;
@@ -95,7 +139,15 @@ void loop() {
     saveProductsToFile();
     saveFileToDB();
   }*/
-
+  int i = 0;
+  do {
+    scannedObjects[i] = scanEAN();
+    i++;
+    while(!buttonPress() && Serial.available() == 0){};
+  } while(!buttonPress() && i < 5);
+  saveProductsToFile(scannedObjects, "savedobjects.txt");
+  lightBlink();
+  readProductsFromFile("savedobjects.txt");
 }
 
 void timeInactive() {
@@ -114,9 +166,6 @@ int buttonState;
       }   
     }
     currentTime = millis();
-    //Serial.print(currentTime);
-    //Serial.print("\n");
-    //delay(500);
 }
       if (currentTime - startTime >= 12000) {
         enterSleepMode();       //when inactive for 120 seconds, enters sleepmode
@@ -124,28 +173,9 @@ int buttonState;
   }
 
 void enterSleepMode() {
-set_sleep_mode(SLEEP_MODE_PWR_DOWN);
-sleep_mode();
-}
-
-void startSound(){
-  tone(soundPin, c);
-  delay(200);
-  tone(soundPin, d);
-  delay(200);
-  tone(soundPin, e);
-  delay(200);
-  noTone(soundPin);
-}
-
-void approvedSound(){
-  tone(soundPin, c, 150);
-  delay(200);
-  tone(soundPin, c);
-  delay(200);
-  tone(soundPin, g);
-  delay(400);
-  noTone(soundPin);
+  playMelody(sleepMel1, sleepMel2, sizeof(sleepMel1)/sizeof(sleepMel1[0]));
+  set_sleep_mode(SLEEP_MODE_PWR_DOWN);
+  sleep_mode();
 }
 
 void playMelody(int tonePitch[], int toneDur[], int numberTones){
