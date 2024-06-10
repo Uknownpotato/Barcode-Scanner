@@ -121,13 +121,13 @@ void wakeUp(){
 }
 
 void loop() {
-  playMelody(startMelody1, startMelody2, sizeof(startMelody1)/sizeof(startMelody1[0]));
+  /*playMelody(startMelody1, startMelody2, sizeof(startMelody1)/sizeof(startMelody1[0]));
   delay(1000);
   playMelody(successMel1, successMel2, sizeof(successMel1)/sizeof(successMel1[0]));
   delay(1000);
   playMelody(failureMel1, failureMel2, sizeof(failureMel1)/sizeof(failureMel1[0]));
 
-  lightBlink();
+  lightBlink();*/
   timeInactive();
   /*if(buttonPressAdd()){
     Inventory scannedObjects(day(), month(), year());
