@@ -1,9 +1,0 @@
-Service URI: postgres://avnadmin:AVNS_cEHaTpr7UZUk0bQGnIp@team-ostermalm-scanner-scannerproject.j.aivencloud.com:23632/defaultdb?sslmode=require
-Database name: defaultdb
-Host: team-ostermalm-scanner-scannerproject.j.aivencloud.com
-Port: 23632
-User: avnadmin
-Password: AVNS_cEHaTpr7UZUk0bQGnIp
-SSL mode: require
-
-Hostaddress: 167.99.44.185
