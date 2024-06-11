@@ -1,0 +1,254 @@
+#include <avr/sleep.h>
+#include <avr/interrupt.h>
+#include "Inventory.h"
+
+// Pin definition for components 
+const byte BUTTON = 2;
+const byte SOUND = 7;
+const byte rRGB = 9;
+const byte gRGB = 10;
+const byte bRGB = 11;
+
+// Pre-defined colors for the RGB LED
+const byte RED[3] = {255, 0, 0};
+const byte GREEN[3] = {0, 255, 0};
+const byte BLUE[3] = {0, 0, 255};
+const byte YELLOW[3] = {255, 255, 0};
+const byte OFF[3] = {0, 0, 0};
+
+// Pre-defined tones for sound output
+const int c = 262;
+const int e = 330;
+const int f = 349;
+const int g = 392;
+const int b4 = 500;
+const int c5 = 592;
+
+// Duration for each note
+const int noteDur = 200;
+
+// Timer variables for managing inactivity and debounce
+unsigned long previousMillis = 0;
+unsigned long inactivityTimer = 0;
+const unsigned long idleTimeout = 5000;
+
+// Debounce variables to handle button press
+volatile bool buttonPressed = false;
+unsigned long lastDebounceTime = 0;
+const byte debounceDelay = 50;
+
+// Available program modes
+enum Mode {
+  START_UP,             // Initial mode when starting up
+  SCAN_IN_MODE,         // Mode for scanning items into inventory
+  REMOVE_MODE,          // Mode for removing items from inventory
+  IDLE                  // Idle mode to save power
+};
+
+// Current mode of the program initially set up  to START_UP
+Mode currentMode = START_UP;
+
+// Create an Inventory object to manage the inventory
+Inventory inventory;
+
+
+void setup() {
+  Serial.begin(9600);                                               // Initialize serial communicaiton
+  pinMode(BUTTON, INPUT_PULLUP);                                    // Set button pin as input with pull-up resistor
+  pinMode(rRGB, OUTPUT);                                            // Set red LED pin as output
+  pinMode(gRGB, OUTPUT);                                            // Set green LED pin as output
+  pinMode(bRGB, OUTPUT);                                            // Set blue LED pin as output
+
+  // Attach an interrupt to the button pin to handle waking up from sleep mode
+  attachInterrupt(digitalPinToInterrupt(BUTTON), wakeUp, FALLING);
+  inactivityTimer = millis();                                       // Initialize the inacitivty timer
+}
+
+
+void loop() {
+  unsigned long currentMillis = millis();
+  
+  // If no action has been performed within idle timeout, go into idle mode
+  if(currentMillis - inactivityTimer >= idleTimeout) {
+    // If the current mode is not already idle, switch to idle
+    if(IDLE != currentMode) {
+      currentMode = IDLE;                           // Set current mode to idle
+      idleSoundLED();                               // Play idle sound and set LED to indicate idle mode
+    }
+  }
+  
+  // Wakes up the program if in idle mode or if not asleep, toggles from scan to remove and vice versa.
+  if(buttonPressed) {
+    // Check debounce to avoid multiple entries
+    if((millis() - lastDebounceTime) > debounceDelay) {
+      buttonPressed = false;
+      if(IDLE == currentMode) {
+        // If asleep, wake up
+        wakeUp();
+      } else {
+        // If not asleep, toggle between scan in and remove
+        toggleMode();
+      }
+    }
+  }
+
+  
+  switch (currentMode) {
+    case START_UP:
+      // Initialize startup sequence with sound and LED
+      startSoundLED();
+
+      // Attempt to initialize SD card
+      if(!sd.begin(4)) {
+        // If SD connection fails, print error
+        Serial.println("SD connection failed!");
+        setNotConnectedLED();
+        return;
+      }
+
+      // If SD connection is successful, set connected LED and print message
+      setConnectedLED();
+      Serial.println("SD connected successfully.");
+      
+      // Switch to SCAN_IN_MODE
+      currentMode = SCAN_IN_MODE;
+    break;
+
+    case SCAN_IN_MODE:
+      // Scan and add product to the inventory
+      inventory.addProductFromScan();
+    break;
+
+    case REMOVE_MODE:
+      // Scan and remove product from the inventory
+      inventory.removeProductFromScan();
+    break;
+    
+    case IDLE:
+      // Enter idle mode A.K.A. power saving mode
+      Serial.println("Entering sleepmode...");
+      sleepMode();
+    break;
+  }
+  
+}
+
+// Interrupt service routine to handle button press,
+// called when button is pressed and set its flag to true
+void handleButtonPress() {
+  lastDebounceTime = millis();                          // Update debounce time to current time
+  buttonPressed = true;                                 // Set the buttonPressed flag
+}
+
+// Toggle between SCAN_IN_MODE and REMOVE_MODE,
+// switches the current mode between scanning in and removing items
+void toggleMode() {
+  if(SCAN_IN_MODE == currentMode) {
+    currentMode = REMOVE_MODE;                          // Switch to remove mode
+    setRemoveLED();                                     // Set LED to indicate remove mode
+  } else if(REMOVE_MODE == currentMode) {
+    currentMode = SCAN_IN_MODE;                         // Switch to scan-in mode
+    setScanInLED();                                     // Set LED to indicate scan-in mode
+  }
+  toggleModeSound();                                    // Play sound to indicate mode toggle
+  resetInactivityTime();                                // Reset the inactivity timer
+}
+
+// Interrupt service routine to wake up from idle mode,
+// called when an interrupt occurs to wake the system from sleep mode
+void wakeUp() {
+  currentMode = START_UP;                               // Set the mode to start-up
+  resetInactivityTime();                                // Reset the inactivity timer
+  detachInterrupt(digitalPinToInterrupt(BUTTON));       // Detach interrupt to avoid ISR being called repeatedly
+}
+
+// Sleep mode config,
+// puts the Arduino into sleep mode to save power and configures the interrupt
+void sleepMode() {
+  set_sleep_mode(SLEEP_MODE_PWR_DOWN);                                  // Enter sleep mode to save power
+  sleep_enable();                                                       // Enable sleep mode
+  
+  attachInterrupt(digitalPinToInterrupt(BUTTON), handleButtonPress, FALLING);      // Attach interrupt to button pin in order to wake up on button press
+  
+  sleep_mode();                                                         // Enter sleep mode, program stops until interrupt is called
+  
+  sleep_disable();                                                      // Disable sleep mode to stop arduino from going back to sleep immediately
+  detachInterrupt(digitalPinToInterrupt(BUTTON));                       // Detach interrupt from button pin
+}
+
+// Reset inactivity timer to current time whenever an action is performed
+void resetInactivityTime() {
+ inactivityTimer = millis();                            // Update inacitivty timer to current time
+}
+
+// Set RGB LED color
+void setColor(const byte color[3]) {
+  analogWrite(rRGB, color[0]);                          // Set red component
+  analogWrite(gRGB, color[1]);                          // Set green component
+  analogWrite(bRGB, color[2]);                          // Set blue component
+}
+
+// Indicate connection successful
+// Turns LED blue and off 3 times
+void setConnectedLED() {
+  for(int i = 0; i < 3; i++) {
+    setColor(BLUE);
+    delay(500);
+    setColor(OFF);
+    delay(500);
+  }
+}
+
+// Indicate failed connection
+void setNotConnectedLED() {
+  setColor(YELLOW);
+}
+
+// Indicate scan in mode
+void setScanInLED() {
+ setColor(GREEN);
+}
+
+// Indicate remove mode
+// Turns LED off and red while in remove mode
+void setRemoveLED() {
+ setColor(OFF);
+ delay(750);
+ setScanInLED();
+}
+
+// Plays melody when toggling mode
+void toggleModeSound() {
+  tone(SOUND, c5, noteDur);
+  delay(noteDur);
+  tone(SOUND, b4, noteDur);
+  delay(noteDur);
+  noTone(SOUND);
+}
+
+// Plays melody and set LED to red when going idle
+void idleSoundLED() {
+  setColor(RED);
+  tone(SOUND, f, noteDur);
+  delay(noteDur);
+  tone(SOUND, c, noteDur);
+  delay(noteDur);
+  noTone(SOUND);
+}
+
+// Plays melody and LED sequence when starting up scanner
+void startSoundLED(){
+  setColor(RED);
+  tone(SOUND, c, noteDur);
+  delay(noteDur);
+  setColor(GREEN);
+  tone(SOUND, e, noteDur);
+  delay(noteDur);
+  setColor(BLUE);
+  tone(SOUND, g, noteDur);
+  delay(noteDur);
+  setColor(YELLOW);
+  tone(SOUND, c5, noteDur);
+  delay(noteDur);
+  noTone(SOUND);
+}
