@@ -160,6 +160,7 @@ void wakeUp() {
   currentMode = START_UP;                               // Set the mode to start-up
   resetInactivityTime();                                // Reset the inactivity timer
   detachInterrupt(digitalPinToInterrupt(BUTTON));       // Detach interrupt to avoid ISR being called repeatedly
+  attachInterrupt(digitalPinToInterrupt(BUTTON), handleButtonPress, FALLING);   // Attach interrupt to handle button press
 }
 
 // Sleep mode config,
