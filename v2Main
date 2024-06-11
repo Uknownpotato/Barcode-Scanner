@@ -1,7 +1,6 @@
 #include <avr/sleep.h>
 #include <avr/interrupt.h>
 #include "Inventory.h"
-#include "connection.h"
 
 // Pins 
 const byte BUTTON = 2;
@@ -19,22 +18,14 @@ const byte OFF[3] = {0, 0, 0};
 
 // Pre-set tones
 const int c = 262;
-const int db = 277;
-const int d = 294;
-const int eb = 311;
 const int e = 330;
 const int f = 349;
-const int gb = 370;
 const int g = 392;
-const int ab = 415;
-const int a = 440;
-const int b = 466;
-const int h = 494;
 const int b4 = 500;
 const int c5 = 592;
 
+// Duration of each note
 const int noteDur = 200;
-
 
 // Timer
 unsigned long previousMillis = 0;
@@ -55,9 +46,11 @@ enum Mode {
 };
 
 // modes used defined
-Mode currentMode = START_UP; // initial mode
+Mode currentMode = START_UP;  // initial mode
 
-Inventory inventory;
+Inventory inventory;          // Inventory object
+
+
 
 void setup() {
   Serial.begin(9600);
@@ -65,8 +58,8 @@ void setup() {
   pinMode(rRGB, OUTPUT);
   pinMode(gRGB, OUTPUT);
   pinMode(bRGB, OUTPUT);
-  attachInterrupt(digitalPinToInterrupt(BUTTON), wakeUp, FALLING);
 
+  attachInterrupt(digitalPinToInterrupt(BUTTON), wakeUp, FALLING);
   inactivityTimer = millis();
 }
 
@@ -75,7 +68,10 @@ void loop() {
   unsigned long currentMillis = millis();
   
   if(currentMillis - inactivityTimer >= idleTimeout) {
-    currentMode = IDLE;
+    if(IDLE != currentMode) {
+      currentMode = IDLE;
+      idleSoundLED();
+    }
   }
   
   if(buttonPressed) {
@@ -92,23 +88,27 @@ void loop() {
   switch (currentMode) {
     case START_UP:
       startSoundLED();
+      if(!sd.begin(4)) {
+        Serial.println("SD connection failed!");
+        setNotConnectedLED();
+        return;
+      }
+      setConnectedLED();
+      Serial.println("SD connected successfully.");
       currentMode = SCAN_IN_MODE;
     break;
 
     case SCAN_IN_MODE:
-
-
-     break;
+      inventory.addProductFromScan();
+    break;
 
     case REMOVE_MODE:
-
-
-     break;
+      inventory.removeProductFromScan();
+    break;
     
     case IDLE:
-     idleSoundLED();
      sleepMode();
-     break;
+    break;
   }
   
 }
@@ -166,16 +166,17 @@ void setColor(const byte color[3]) {
 
 // Indicate connected to wifi
 void setConnectedLED() {
-  setColor(BLUE);
-  delay(1500);
-  setColor(OFF);
+  for(int i = 0; i < 3; i++) {
+    setColor(BLUE);
+    delay(500);
+    setColor(OFF);
+    delay(500);
+  }
 }
 
 // Indicate not connected wifi
 void setNotConnectedLED() {
   setColor(YELLOW);
-  delay(1500);
-  setColor(OFF);
 }
 
 // Indicate scan in mode
